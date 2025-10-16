@@ -1,7 +1,10 @@
+using Microsoft.Data.Sqlite;
+
+
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddControllers();
 var app = builder.Build();
 app.UseHttpsRedirection();
-app.UseAuthorization();
 app.MapControllers();
 app.UseHttpsRedirection();
 DbSeeder.EnsureSeed("demo.db");
@@ -12,16 +15,18 @@ static class DbSeeder
 {
     public static void EnsureSeed(string dbPath)
     {
+        Console.WriteLine("Seedf Ensured");
         var cs = $"Data Source={dbPath};";
-        var needsCreate = !File.Exists(dbPath);
 
         using var conn = new SqliteConnection(cs);
         conn.Open();
 
+        using var transaction = conn.BeginTransaction();
         using var cmd = conn.CreateCommand();
+        cmd.Transaction = transaction;
 
          // create table if not exists
-        cmd.CommandText = @"DELETE TABLE IF EXISTS Users";
+        cmd.CommandText = @"DROP TABLE IF EXISTS Users";
         cmd.ExecuteNonQuery();
 
         // create table if not exists
@@ -34,9 +39,8 @@ static class DbSeeder
         ";
 
         cmd.ExecuteNonQuery();
+        transaction.Commit();
 
-        if (needsCreate)
-        {
             // Users to insert: (Name, Email, PlainPassword)
         var users = new List<(string Name, string Email)>
         {
@@ -48,18 +52,19 @@ static class DbSeeder
         };
 
         using var tx = conn.BeginTransaction();
-        cmd.CommandText = @"
+        using var cmdQuery = conn.CreateCommand();
+        cmdQuery.CommandText = @"
 INSERT INTO Users (Name, Email)
 VALUES (@name, @email);
 ";
         // prepare parameter placeholders once
-        var pName = cmd.CreateParameter();
+        var pName = cmdQuery.CreateParameter();
         pName.ParameterName = "@name";
-        cmd.Parameters.Add(pName);
+        cmdQuery.Parameters.Add(pName);
 
         var pEmail = cmd.CreateParameter();
         pEmail.ParameterName = "@email";
-        cmd.Parameters.Add(pEmail);
+        cmdQuery.Parameters.Add(pEmail);
 
 
         foreach (var u in users)
@@ -68,7 +73,7 @@ VALUES (@name, @email);
             pEmail.Value = u.Email;
             try
             {
-                cmd.ExecuteNonQuery();
+                cmdQuery.ExecuteNonQuery();
                 Console.WriteLine($"Inserted user: {u.Email}");
             }
             catch (SqliteException ex) when (ex.SqliteErrorCode == 19) // constraint violation (unique)
@@ -79,7 +84,7 @@ VALUES (@name, @email);
 
         tx.Commit();
         Console.WriteLine("Seeding complete.");
-        }
+    
     }
 }
 

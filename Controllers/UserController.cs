@@ -15,33 +15,34 @@ namespace SqliteSqlInjectionDemo.Controllers
         [HttpGet("search")]
         public IActionResult LoginVulnerable(string email)
         {
+            Console.WriteLine($"Login attempt for email: {email}");
             using var conn = new SqliteConnection(ConnectionString);
             conn.Open();
 
             // WARNING: vulnerable to SQL injection
-            string sql = "SELECT Id, Name, Email FROM Users WHERE Email = '" + email; 
+            string sql = "SELECT Id, Name, Email FROM Users WHERE Email = '" + email + "'"; 
 
             using var cmd = new SqliteCommand(sql, conn);
             using var reader = cmd.ExecuteReader();
+            Console.WriteLine($"cmd: {cmd.CommandText}");
 
-            if (reader.Read())
+            var users = new List<object>();
+
+            while (reader.Read())
             {
-                return Ok(new
+                Console.WriteLine($"Reading The Email from DB: {email}");
+                users.Add(new
                 {
-                    success = true,
-                    user = new
-                    {
-                        Id = reader.GetInt32(0),
-                        Name = reader.GetString(1),
-                        Email = reader.GetString(2)
-                    }
+                    Id = reader.GetInt32(0),
+                    Name = reader.GetString(1),
+                    Email = reader.GetString(2)
                 });
+                          
             }
-
-            return Unauthorized(new { success = false, message = "Invalid credentials" });
+            return Ok(new { success = true, users });
         }
 
-.
+
         [HttpGet("safesearch")]
         public IActionResult LoginSafe(string email)
         {
@@ -53,21 +54,20 @@ namespace SqliteSqlInjectionDemo.Controllers
             cmd.Parameters.AddWithValue("@email", (object)email ?? DBNull.Value);
  
             using var reader = cmd.ExecuteReader();
-            if (reader.Read())
+            var users = new List<object>();
+            while (reader.Read())
             {
-                return Ok(new
+                Console.WriteLine($"Reading The Email from DB: {email}");
+                users.Add(new
                 {
-                    success = true,
-                    user = new
-                    {
-                        Id = reader.GetInt32(0),
-                        Name = reader.GetString(1),
-                        Email = reader.GetString(2)
-                    }
+                    Id = reader.GetInt32(0),
+                    Name = reader.GetString(1),
+                    Email = reader.GetString(2)
                 });
+                          
             }
+            return Ok(new { success = true, users });
 
-            return Unauthorized(new { success = false, message = "Invalid credentials" });
         }
 
     }
