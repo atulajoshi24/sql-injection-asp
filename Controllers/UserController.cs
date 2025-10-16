@@ -4,6 +4,9 @@ using Microsoft.Data.Sqlite;
 using System;
 using System.Data;
 
+//http://localhost:5013/api/user/safesearch?email=alice@example.com%27%20OR%201=1%20--
+//http://localhost:5013/api/user/safesearch?email=alice@example.com
+
 namespace SqliteSqlInjectionDemo.Controllers
 {
     [ApiController]
